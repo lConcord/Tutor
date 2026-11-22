@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Admin · Tutor Live Dashboard</title>
+<link rel="manifest" href="/admin/manifest.webmanifest">
+<meta name="theme-color" content="#1a0d1f">
+<link rel="icon" type="image/png" href="/admin/icon-192.png">
+<link rel="apple-touch-icon" href="/admin/apple-touch-icon.png">
+<style>
+  :root{--bg:#0b1020;--panel:#121a2f;--panel2:#18233e;--text:#eef3ff;--muted:#9aa8c7;--brand:#ff7a45;--brand2:#ffb347;
+    --good:#35d07f;--bad:#ff667d;--warn:#ffb84d;--border:rgba(255,255,255,.09)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+  header{position:sticky;top:0;z-index:5;background:rgba(11,16,32,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
+    padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  h1{font-size:1.05rem;margin:0;letter-spacing:-.02em}
+  h1 span{color:var(--brand2)}
+  .live{display:inline-flex;align-items:center;gap:7px;font-size:.8rem;color:var(--muted);margin-right:auto}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+  .dot.on{background:var(--good);box-shadow:0 0 0 0 rgba(53,208,127,.6);animation:pulse 1.6s infinite}
+  .dot.off{background:var(--bad)}
+  @keyframes pulse{70%{box-shadow:0 0 0 8px rgba(53,208,127,0)}100%{box-shadow:0 0 0 0 rgba(53,208,127,0)}}
+  .stats{display:flex;gap:10px;flex-wrap:wrap}
+  .stat{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:8px 13px;min-width:92px}
+  .stat b{display:block;font-size:1.35rem;line-height:1.1}
+  .stat small{color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em}
+  .stat.alert b{color:var(--bad)}
+  button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--text);padding:7px 12px}
+  button:hover{border-color:var(--brand)}
+  button.danger{color:var(--bad)}
+  main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);gap:18px;padding:18px 20px;align-items:start}
+  @media(max-width:980px){main{grid-template-columns:1fr}}
+  h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:16px;padding:16px;transition:border-color .3s,box-shadow .3s}
+  .card.flash{box-shadow:0 0 0 2px var(--brand2)}
+  .card.left{border-color:rgba(255,102,125,.6);box-shadow:0 0 0 1px rgba(255,102,125,.25)}
+  .top{display:flex;align-items:flex-start;gap:10px}
+  .name{font-weight:800;font-size:1.05rem;word-break:break-word}
+  .also{color:var(--muted);font-size:.75rem}
+  .pill{margin-left:auto;white-space:nowrap;font-size:.7rem;font-weight:800;padding:4px 9px;border-radius:99px;border:1px solid var(--border)}
+  .pill.online{color:var(--good);border-color:rgba(53,208,127,.4);background:rgba(53,208,127,.08)}
+  .pill.offline{color:var(--muted)}
+  .pill.left{color:var(--bad);border-color:rgba(255,102,125,.5);background:rgba(255,102,125,.1)}
+  .where{color:var(--muted);font-size:.8rem;margin:4px 0 10px}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:10px 0;font-size:.85rem}
+  dt{color:var(--muted)} dd{margin:0;word-break:break-word}
+  .sec{border-top:1px solid var(--border);padding-top:10px;margin-top:10px}
+  .sec h3{margin:0 0 6px;font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+  .bar{height:9px;background:var(--bg);border-radius:99px;overflow:hidden;margin:6px 0}
+  .bar span{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .4s}
+  .small{font-size:.8rem;color:var(--muted)}
+  .warnbox{margin-top:8px;padding:9px 11px;border-radius:10px;background:rgba(255,102,125,.1);border:1px solid rgba(255,102,125,.35);font-size:.82rem;color:#ffd0d7}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:.75rem;padding:3px 9px;border-radius:99px;border:1px solid var(--border)}
+  .chip.pass{color:var(--good);border-color:rgba(53,208,127,.4)}
+  .chip.fail{color:var(--bad);border-color:rgba(255,102,125,.4)}
+  details{margin-top:10px}
+  summary{cursor:pointer;color:var(--brand2);font-size:.8rem}
+  .ans{font-size:.78rem;border-top:1px dashed var(--border);padding:7px 0}
+  .ans b.ok{color:var(--good)} .ans b.no{color:var(--bad)}
+  .ans div{color:var(--muted);margin-top:2px;white-space:pre-wrap;word-break:break-word}
+  .feedbox{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px;position:sticky;top:78px}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .filters button.active{border-color:var(--brand);background:var(--panel2)}
+  #feed{max-height:calc(100vh - 210px);overflow:auto}
+  .ev{display:flex;gap:9px;padding:8px 2px;border-bottom:1px solid var(--border);font-size:.82rem;line-height:1.45;animation:in .35s}
+  @keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  .ev .t{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ev .m{flex:1;word-break:break-word}
+  .ev .m i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--muted)}
+  .ev.good .m i{background:var(--good)} .ev.warn .m i{background:var(--warn)} .ev.bad .m i{background:var(--bad)}
+  .ev.bad .m{color:#ffd0d7}
+  .empty{color:var(--muted);padding:26px 4px;text-align:center}
+  .who{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted)}
+  .who b{color:var(--text)}
+  .role{font-size:.65rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:linear-gradient(135deg,#ff7a45,#be265c);padding:3px 8px;border-radius:99px}
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:18px;padding:22px;width:min(400px,92vw)}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  dialog h3{margin:0 0 4px}
+  dialog label{display:block;font-size:.78rem;color:var(--muted);margin:12px 0 5px}
+  dialog input{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit}
+  dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+  .err{color:var(--bad);font-size:.85rem;min-height:1.2em;margin-top:8px}
+  .ok{color:var(--good);font-size:.85rem}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <h1>Concord Tutor <span>Admin</span></h1>
+    <span class="live"><i class="dot" id="dot"></i><span id="conn">Connecting…</span></span>
+    <div class="stats">
+      <div class="stat"><b id="sOnline">0</b><small>Online now</small></div>
+      <div class="stat"><b id="sActive">0</b><small>Quiz in progress</small></div>
+      <div class="stat alert"><b id="sLeft">0</b><small>Left mid-quiz</small></div>
+      <div class="stat"><b id="sDone">0</b><small>Quizzes finished</small></div>
+      <div class="stat"><b id="sTotal">0</b><small>Students</small></div>
+    </div>
+    <button id="clearBtn" class="danger" title="Delete all recorded activity">Clear data</button>
+    <div class="who"><span class="role">Admin</span><span>Signed in as <b id="meName">…</b></span>
+      <button id="pwBtn" type="button">Change password</button><button id="outBtn" type="button">Sign out</button></div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Students</h2>
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="noStudents">Waiting for students… open the app and enter a name to see them appear here instantly.</div>
+    </section>
+    <aside class="feedbox">
+      <h2>Live activity</h2>
+      <div class="filters" id="filters">
+        <button data-f="all" class="active">All</button>
+        <button data-f="quiz">Quiz</button>
+        <button data-f="alerts">Alerts</button>
+        <button data-f="nopages">Hide page views</button>
+      </div>
+      <div id="feed"></div>
+    </aside>
+  </main>
+</div>
+
+<dialog id="pwDlg">
+  <form id="pwForm" method="dialog" autocomplete="off">
+    <h3>Change password</h3>
+    <label for="pwCur">Current password</label><input id="pwCur" type="password" autocomplete="current-password" required>
+    <label for="pwNew">New password (at least 8 characters)</label><input id="pwNew" type="password" autocomplete="new-password" minlength="8" required>
+    <label for="pwNew2">Confirm new password</label><input id="pwNew2" type="password" autocomplete="new-password" minlength="8" required>
+    <div class="err" id="pwErr" role="alert"></div>
+    <div class="row"><button type="button" id="pwCancel">Cancel</button><button type="submit" id="pwSave">Save password</button></div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+  // Everything that comes from students is rendered with textContent — never as HTML.
+  function h(tag, props) {
+    var el = document.createElement(tag);
+    if (props) Object.keys(props).forEach(function (k) {
+      if (k === 'class') el.className = props[k]; else if (k === 'text') el.textContent = props[k]; else el.setAttribute(k, props[k]);
+    });
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c == null || c === false) continue;
+      el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    }
+    return el;
+  }
+  var $ = function (id) { return document.getElementById(id); };
+
+  var sessions = new Map();
+  var events = [];
+  var skew = 0;                       // server clock minus this browser's clock
+  var filter = 'all';
+  var openCards = new Set();
+  var cards = new Map();
+  var es = null;
+
+  function now() { return Date.now() + skew; }
+  function ago(t) {
+    var s = Math.max(0, Math.round((now() - t) / 1000));
+    if (s < 5) return 'just now';
+    if (s < 60) return s + 's ago';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+  function clock(t) { return new Date(t).toLocaleTimeString([], { hour12: false }); }
+  function kb(n) { return (n / 1024).toFixed(1) + ' KB'; }
+  var PAGES = { 'index.html': 'Home', 'student.html': 'Name page', 'profile.html': 'Profile page', 'upload.html': 'Upload page',
+    'questions.html': 'Question-count page', 'quiz.html': 'Quiz', 'results.html': 'Results page', 'progress.html': 'Progress page', 'about.html': 'About page' };
+
+  /* ---------- session (admin only; students can never reach this page) ---------- */
+  function toLogin() { location.replace('/admin/login'); }
+  function api(path, body) {
+    return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body || {}) });
+  }
+  function start() {
+    fetch('/admin/api/me', { cache: 'no-store', credentials: 'same-origin' }).then(function (r) {
+      if (!r.ok) throw new Error('not signed in');
+      return r.json();
+    }).then(function (me) {
+      $('meName').textContent = me.username;
+      return fetch('/api/state', { cache: 'no-store', credentials: 'same-origin' });
+    }).then(function (r) {
+      if (!r.ok) throw new Error('not signed in');
+      return r.json();
+    }).then(function (snap) {
+      applySnapshot(snap);
+      connect();
+    }).catch(toLogin);
+  }
+  $('outBtn').addEventListener('click', function () {
+    api('/admin/api/logout').then(toLogin, toLogin);
+  });
+  var dlg = $('pwDlg');
+  $('pwBtn').addEventListener('click', function () { $('pwForm').reset(); $('pwErr').textContent = ''; dlg.showModal(); $('pwCur').focus(); });
+  $('pwCancel').addEventListener('click', function () { dlg.close(); });
+  $('pwForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var err = $('pwErr'); err.className = 'err'; err.textContent = '';
+    if ($('pwNew').value !== $('pwNew2').value) { err.textContent = 'The new passwords do not match.'; return; }
+    api('/admin/api/password', { current: $('pwCur').value, next: $('pwNew').value }).then(function (r) {
+      return r.json().then(function (b) { return { ok: r.ok, b: b }; });
+    }).then(function (x) {
+      if (x.ok) { err.className = 'err ok'; err.textContent = 'Password changed. Other devices were signed out.'; setTimeout(function () { dlg.close(); }, 1200); }
+      else err.textContent = (x.b && x.b.error) || 'Could not change the password.';
+    }).catch(function () { err.textContent = 'Cannot reach the server.'; });
+  });
+
+  /* ---------- real-time stream ---------- */
+  function connect() {
+    if (es) es.close();
+    es = new EventSource('/api/stream');
+    es.onopen = function () { $('dot').className = 'dot on'; $('conn').textContent = 'Live'; };
+    es.onerror = function () {
+      $('dot').className = 'dot off'; $('conn').textContent = 'Reconnecting…';
+      // If the session expired, the stream is refused: check, and go to sign-in if so.
+      fetch('/admin/api/me', { cache: 'no-store', credentials: 'same-origin' }).then(function (r) { if (r.status === 401) toLogin(); }).catch(function () {});
+    };
+    es.addEventListener('snapshot', function (e) { applySnapshot(JSON.parse(e.data)); });
+    es.addEventListener('update', function (e) {
+      var d = JSON.parse(e.data);
+      if (d.event) { events.push(d.event); if (events.length > 600) events.shift(); renderFeed(); }
+      if (d.session) { sessions.set(d.session.sid, d.session); renderCard(d.session.sid, !!d.event); renderStats(); }
+    });
+  }
+  function applySnapshot(s) {
+    skew = s.now - Date.now();
+    sessions = new Map(s.sessions.map(function (x) { return [x.sid, x]; }));
+    events = s.events || [];
+    $('grid').textContent = ''; cards.clear();
+    sortedSids().forEach(function (sid) { renderCard(sid); });
+    renderFeed(); renderStats();
+  }
+
+  /* ---------- stats ---------- */
+  function renderStats() {
+    var online = 0, active = 0, left = 0, done = 0, named = 0;
+    sessions.forEach(function (s) {
+      if (s.online) online++;
+      if (s.quiz && s.quiz.status === 'in_progress') active++;
+      if (s.quiz && s.quiz.status === 'left') left++;
+      done += (s.results || []).length;
+      if (s.name) named++;
+    });
+    $('sOnline').textContent = online; $('sActive').textContent = active; $('sLeft').textContent = left;
+    $('sDone').textContent = done; $('sTotal').textContent = named || sessions.size;
+    $('noStudents').classList.toggle('hidden', sessions.size > 0);
+  }
+
+  /* ---------- student cards ---------- */
+  function sortedSids() {
+    return Array.from(sessions.values()).sort(function (a, b) { return b.lastSeen - a.lastSeen; }).map(function (s) { return s.sid; });
+  }
+  function statusOf(s) {
+    if (s.quiz && s.quiz.status === 'left') return ['left', '⚠ Left quiz'];
+    if (s.online) return ['online', '● Online'];
+    return ['offline', '○ Offline'];
+  }
+  function buildCard(s) {
+    var st = statusOf(s), q = s.quiz;
+    var card = h('div', { class: 'card' + (q && q.status === 'left' ? ' left' : ''), 'data-sid': s.sid });
+
+    var nameBox = h('div', null, h('div', { class: 'name', text: s.name || 'Name not entered yet' }));
+    var others = (s.names || []).filter(function (n) { return n !== s.name; });
+    if (others.length) nameBox.appendChild(h('div', { class: 'also', text: 'Same device also used by: ' + others.join(', ') }));
+    card.appendChild(h('div', { class: 'top' }, nameBox, h('span', { class: 'pill ' + st[0], text: st[1] })));
+
+    var where;
+    if (s.online) {
+      where = 'Now on: ' + (PAGES[s.page] || s.page || '—') + (s.page === 'quiz.html' && s.question ? ' (question ' + s.question + ')' : '') + (s.visible ? '' : ' · tab in background');
+    } else where = 'Last seen ' + ago(s.lastSeen);
+    card.appendChild(h('div', { class: 'where', text: where + ' · ' + (s.device || '') }));
+
+    var p = s.profile;
+    if (p) {
+      card.appendChild(h('dl', null,
+        h('dt', { text: 'School' }), h('dd', { text: p.school || '—' }),
+        h('dt', { text: 'Programme' }), h('dd', { text: p.programme || '—' }),
+        h('dt', { text: 'Level' }), h('dd', { text: p.level || '—' }),
+        h('dt', { text: 'Subjects' }), h('dd', { text: p.subjects || '—' })));
+    } else {
+      card.appendChild(h('div', { class: 'small', text: 'Profile not filled in yet.' }));
+    }
+
+    if (s.material) {
+      card.appendChild(h('div', { class: 'sec' }, h('h3', { text: 'Uploaded study material' }),
+        h('div', { text: s.material.name }),
+        h('div', { class: 'small', text: kb(s.material.size) + ' · ' + s.material.questions + ' questions generated · ' + ago(s.material.at) })));
+    }
+
+    if (q) {
+      var pct = q.total ? Math.round(q.answered / q.total * 100) : 0;
+      var label = { in_progress: 'In progress', left: 'LEFT before finishing', completed: 'Completed', abandoned: 'Abandoned' }[q.status] || q.status;
+      var sec = h('div', { class: 'sec' }, h('h3', { text: 'Quiz progress — ' + label }),
+        h('div', { class: 'bar' }, h('span', { style: 'width:' + pct + '%' })),
+        h('div', { class: 'small', text: q.answered + ' of ' + q.total + ' answered · ✓ ' + q.correct + ' correct · ✗ ' + (q.answered - q.correct) + ' wrong' + (q.status === 'in_progress' && s.question ? ' · on question ' + s.question : '') }));
+      if (q.status === 'left') {
+        sec.appendChild(h('div', { class: 'warnbox', text: 'Left at question ' + (q.leftAtQuestion || q.answered + 1) + ' of ' + q.total + ' — ' + (q.leftReason || 'left') + ' · ' + ago(q.leftAt) }));
+      }
+      card.appendChild(sec);
+    }
+
+    if (s.results && s.results.length) {
+      var chips = h('div', { class: 'chips' });
+      s.results.slice(0, 8).forEach(function (r) {
+        chips.appendChild(h('span', { class: 'chip ' + (r.passed ? 'pass' : 'fail'), text: (r.passed ? 'HURRAY ' : 'SHAME ') + r.correct + '/' + r.total + ' (' + r.percent + '%)' + (r.student ? ' · ' + r.student : '') }));
+      });
+      card.appendChild(h('div', { class: 'sec' }, h('h3', { text: 'Finished quizzes' }), chips));
+    }
+
+    if (q && q.answers && q.answers.length) {
+      var det = h('details', null, h('summary', { text: 'Answers so far (' + q.answers.length + ')' }));
+      if (openCards.has(s.sid)) det.setAttribute('open', '');
+      det.addEventListener('toggle', function () { if (det.open) openCards.add(s.sid); else openCards.delete(s.sid); });
+      q.answers.slice().sort(function (a, b) { return a.n - b.n; }).forEach(function (a) {
+        det.appendChild(h('div', { class: 'ans' },
+          h('b', { class: a.correct ? 'ok' : 'no', text: 'Q' + a.n + ' ' + (a.correct ? '✓ correct' : '✗ wrong') }),
+          h('div', { text: a.q }), h('div', { text: 'Their answer: ' + a.user })));
+      });
+      card.appendChild(det);
+    }
+    return card;
+  }
+  function renderCard(sid, flash) {
+    var s = sessions.get(sid); if (!s) return;
+    var fresh = buildCard(s), old = cards.get(sid), grid = $('grid');
+    if (old) grid.replaceChild(fresh, old); else grid.insertBefore(fresh, grid.firstChild);
+    cards.set(sid, fresh);
+    // keep the most recently active student first
+    if (grid.firstChild !== fresh && s.online && flash) grid.insertBefore(fresh, grid.firstChild);
+    if (flash) { fresh.classList.add('flash'); setTimeout(function () { fresh.classList.remove('flash'); }, 900); }
+  }
+
+  /* ---------- activity feed ---------- */
+  var QUIZ_TYPES = ['quiz_started', 'answer_submitted', 'quiz_completed', 'quiz_left', 'quiz_resumed', 'quiz_abandoned', 'visibility'];
+  function show(ev) {
+    if (filter === 'quiz') return QUIZ_TYPES.indexOf(ev.type) !== -1;
+    if (filter === 'alerts') return ev.level === 'bad' || ev.level === 'warn';
+    if (filter === 'nopages') return ev.type !== 'page_view';
+    return true;
+  }
+  function renderFeed() {
+    var feed = $('feed'); feed.textContent = '';
+    var list = events.filter(show).slice(-250).reverse();
+    if (!list.length) { feed.appendChild(h('div', { class: 'empty', text: 'No activity yet.' })); return; }
+    list.forEach(function (ev) {
+      feed.appendChild(h('div', { class: 'ev ' + (ev.level || 'info') }, h('span', { class: 't', text: clock(ev.t) }),
+        h('span', { class: 'm' }, h('i'), ev.text)));
+    });
+  }
+  $('filters').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    filter = b.getAttribute('data-f');
+    Array.prototype.forEach.call($('filters').children, function (x) { x.classList.toggle('active', x === b); });
+    renderFeed();
+  });
+
+  $('clearBtn').addEventListener('click', function () {
+    if (confirm('Delete ALL recorded student activity? This cannot be undone.')) {
+      api('/api/clear');
+    }
+  });
+
+  // keep "x ago" labels fresh
+  setInterval(function () { sessions.forEach(function (_, sid) { renderCard(sid); }); }, 10000);
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' }).catch(function () {});
+  start();
+})();
+</script>
+</body>
+</html>

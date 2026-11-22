@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Create admin account · Concord Tutor</title>
+<link rel="manifest" href="/admin/manifest.webmanifest">
+<meta name="theme-color" content="#1a0d1f">
+<link rel="icon" type="image/png" href="/admin/icon-192.png">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+<main class="box">
+  <div class="badge"><img src="/admin/icon-192.png" alt="">First-time setup</div>
+  <h1>Create the admin account</h1>
+  <p class="sub">No admin exists yet. Enter the one-time <b>setup code</b> shown in the terminal where you started the server, then choose your sign-in details.</p>
+  <form id="f" autocomplete="off">
+    <label for="c">Setup code</label>
+    <input id="c" name="code" autocapitalize="characters" spellcheck="false" placeholder="e.g. 9F3A1C07BE" required autofocus>
+    <label for="u">Admin username</label>
+    <input id="u" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. teacher" required>
+    <label for="p">Password <span style="font-weight:400">(at least 8 characters)</span></label>
+    <input id="p" name="password" type="password" autocomplete="new-password" minlength="8" required>
+    <label for="p2">Confirm password</label>
+    <input id="p2" name="confirm" type="password" autocomplete="new-password" minlength="8" required>
+    <button class="primary" id="go" type="submit">Create admin account</button>
+    <div class="err" id="err" role="alert"></div>
+  </form>
+</main>
+<script>
+(function(){
+  var f=document.getElementById('f'),err=document.getElementById('err'),go=document.getElementById('go');
+  f.addEventListener('submit',function(e){
+    e.preventDefault(); err.textContent='';
+    if(f.password.value!==f.confirm.value){err.textContent='The two passwords do not match.';return;}
+    go.disabled=true; go.textContent='Creating…';
+    fetch('/admin/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',
+      body:JSON.stringify({code:f.code.value.trim(),username:f.username.value.trim(),password:f.password.value})})
+    .then(function(r){return r.json().then(function(b){return{ok:r.ok,b:b};});})
+    .then(function(x){
+      if(x.ok){location.replace('/admin');return;}
+      if(x.b&&x.b.error&&/already exists/i.test(x.b.error)){location.replace('/admin/login');return;}
+      err.textContent=(x.b&&x.b.error)||'Could not create the account.';
+    })
+    .catch(function(){err.textContent='Cannot reach the server. Check your connection.';})
+    .then(function(){go.disabled=false;go.textContent='Create admin account';});
+  });
+})();
+</script>
+</body>
+</html>

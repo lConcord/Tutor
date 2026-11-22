@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Admin sign-in · Concord Tutor</title>
+<link rel="manifest" href="/admin/manifest.webmanifest">
+<meta name="theme-color" content="#1a0d1f">
+<link rel="icon" type="image/png" href="/admin/icon-192.png">
+<link rel="apple-touch-icon" href="/admin/apple-touch-icon.png">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+<main class="box">
+  <div class="badge"><img src="/admin/icon-192.png" alt="">Staff area</div>
+  <h1>Admin sign-in</h1>
+  <p class="sub">This area is for tutors and administrators only. Students use the student app.</p>
+  <form id="f" autocomplete="on">
+    <label for="u">Username</label>
+    <input id="u" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+    <label for="p">Password</label>
+    <input id="p" name="password" type="password" autocomplete="current-password" required>
+    <button class="primary" id="go" type="submit">Sign in</button>
+    <div class="err" id="err" role="alert"></div>
+  </form>
+  <div class="hint">Forgot your password? On the server run <code>node server.js --reset-admin</code>, then start it again to create a new admin account.</div>
+</main>
+<script>
+(function(){
+  var f=document.getElementById('f'),err=document.getElementById('err'),go=document.getElementById('go');
+  f.addEventListener('submit',function(e){
+    e.preventDefault(); err.textContent=''; go.disabled=true; go.textContent='Signing in…';
+    fetch('/admin/api/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',
+      body:JSON.stringify({username:f.username.value.trim(),password:f.password.value})})
+    .then(function(r){return r.json().then(function(b){return{ok:r.ok,b:b};});})
+    .then(function(x){
+      if(x.ok){location.replace('/admin');return;}
+      if(x.b&&x.b.setup){location.replace('/admin/setup');return;}
+      err.textContent=(x.b&&x.b.error)||'Could not sign in.'; f.password.value=''; f.password.focus();
+    })
+    .catch(function(){err.textContent='Cannot reach the server. Check your connection.';})
+    .then(function(){go.disabled=false;go.textContent='Sign in';});
+  });
+  if('serviceWorker' in navigator){navigator.serviceWorker.register('/admin/sw.js',{scope:'/admin/'}).catch(function(){});}
+})();
+</script>
+</body>
+</html>
