@@ -1,12 +1,10 @@
 {
-  "name": "concord-tutor-backend",
+  "name": "concord-tutor",
   "version": "1.0.0",
-  "description": "Live activity backend and admin dashboard for Concord's as your Tutor (no dependencies).",
-  "main": "server.js",
+  "description": "Concord's as your Tutor - student quiz app with a live admin dashboard.",
   "scripts": {
     "start": "node server.js"
   },
   "engines": { "node": ">=18" },
-  "license": "UNLICENSED",
   "private": true
 }

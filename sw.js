@@ -7,9 +7,9 @@ const CACHE = 'concord-tutor-v1';
 const SHELL = [
   'index.html', 'student.html', 'profile.html', 'upload.html', 'questions.html', 'quiz.html',
   'results.html', 'progress.html', 'about.html',
-  'assets/styles.css', 'assets/app.js', 'assets/config.js', 'assets/tracker.js', 'assets/pwa.js',
+  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js',
   'manifest.webmanifest',
-  'assets/icons/icon-192.png', 'assets/icons/icon-512.png', 'assets/icons/apple-touch-icon.png'
+  'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
 ];
 
 self.addEventListener('install', event => {

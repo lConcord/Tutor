@@ -49,7 +49,6 @@ without a signed-in admin session.
 
 ### Run (Node 18+, no `npm install`)
 ```bash
-cd backend
 node server.js
 ```
 1. The first start prints a **one-time setup code** in the terminal.
@@ -83,18 +82,31 @@ Note: browsers only allow installing from `https://` addresses (or `localhost`).
 Moving from question 3 to 4 or refreshing the page is *not* treated as leaving.
 
 ### Security notes
-- Passwords are stored only as salted `scrypt` hashes in `backend/data/admin.json` (file mode 600).
+- Passwords are stored only as salted `scrypt` hashes in `data/admin.json` (file mode 600).
 - The session is a random token in an `HttpOnly`, `SameSite=Strict` cookie (12 hours; `Secure` automatically on HTTPS).
 - Failed sign-ins are rate limited (5 per address + username, 20 per address, per 10 minutes).
 - Admin requests must be JSON from the same site (blocks cross-site form posts).
 - Student-supplied text is always shown as plain text in the dashboard.
 - When hosting online use HTTPS. Behind a proxy that terminates HTTPS (Render, nginx, …) also set `TRUST_PROXY=1`.
-- The backend folder and saved data are never served by the web server.
+- The web server only serves an explicit list of student files; server code, the admin dashboard file and saved data are never served.
 - The student name page tells students that their tutor can see this information.
 
+### Putting it online
+See **[DEPLOY.md](DEPLOY.md)** for step-by-step instructions (Render, Railway or your own server).
+Quick start on any host: start command `npm start`, and set `TRUST_PROXY=1`, `ADMIN_USER`, `ADMIN_PASSWORD`
+(plus `DATA_DIR` pointing at a persistent disk if you want activity history to survive restarts).
+
 ### Hosting the student pages somewhere else
-If the static pages are hosted separately from the backend, set the backend address in `assets/config.js`:
+If the static pages are hosted separately from the backend, set the backend address in `config.js`:
 ```js
 window.CONCORD_API = 'https://your-backend.example.com';
 ```
 (Student activity reporting works cross-site; the admin app must be opened on the backend's own address.)
+
+
+## File layout (flat)
+Every file sits in one folder, so the project can be uploaded to GitHub from a phone (phone file pickers
+cannot upload folders). Student pages: `index`, `student`, `profile`, `upload`, `questions`, `quiz`, `results`,
+`progress`, `about` (`.html`) plus `styles.css`, `app.js`, `config.js`, `tracker.js`, `pwa.js`, `sw.js`,
+`manifest.webmanifest` and the icon PNGs. Server: `server.js`, `auth.js`. Admin app: `login.html`, `setup.html`,
+`admin.html`, `admin.css`, `admin.webmanifest`, `admin-sw.js` and the `admin-*.png` icons.

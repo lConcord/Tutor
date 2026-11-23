@@ -4,7 +4,7 @@
  * -----------------------------------------------
  * Zero dependencies (Node 18+). It does three things:
  *   1. Serves the tutor app itself (the folder above /backend).
- *   2. Receives activity events from assets/tracker.js  (POST /api/track).
+ *   2. Receives activity events from tracker.js  (POST /api/track).
  *   3. Streams everything to the admin app in real time (GET /admin).
  *
  * Two kinds of people, kept strictly apart:
@@ -25,9 +25,18 @@ const auth = require('./auth');
 const PORT = Number(process.env.PORT) || 3000;
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';   // set when behind nginx/Render/etc. that terminates HTTPS
 
-const APP_ROOT = path.resolve(__dirname, '..');
-const PUBLIC_DIR = path.join(__dirname, 'public');
-const DATA_DIR = path.join(__dirname, 'data');
+// Flat layout: every file lives in this one folder. Only the files in STUDENT_FILES below are ever
+// served to the public; server code, the admin dashboard and saved data never are.
+const APP_ROOT = __dirname;
+const PUBLIC_DIR = __dirname;
+const STUDENT_FILES = new Set([
+  'index.html', 'student.html', 'profile.html', 'upload.html', 'questions.html', 'quiz.html',
+  'results.html', 'progress.html', 'about.html',
+  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js', 'sw.js', 'manifest.webmanifest',
+  'icon-192.png', 'icon-512.png', 'maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png'
+]);
+// Where student activity is saved. On hosts that wipe files on restart, point DATA_DIR at a persistent volume.
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'activity.json');
 
 const STALE_VISIBLE_MS = 15000;   // no heartbeat for 15 s while the tab is visible  -> offline
@@ -543,13 +552,15 @@ const server = http.createServer((req, res) => {
 
     if (p === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
 
-    // Static app files. The backend folder (code + saved student data) is never served.
+    // Student app files: only names on the allow-list, directly in the root.
     let rel = decodeURIComponent(p);
-    if (rel.endsWith('/')) rel += 'index.html';
-    const file = path.resolve(APP_ROOT, '.' + rel);
-    const inApp = file === APP_ROOT || file.startsWith(APP_ROOT + path.sep);
-    const blocked = !inApp || file.startsWith(__dirname) || rel.split('/').some(x => x.startsWith('.'));
-    if (blocked) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
+    if (rel === '/') rel = '/index.html';
+    const name = rel.slice(1);
+    if (!rel.startsWith('/') || !STUDENT_FILES.has(name)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      return res.end('Not found');
+    }
+    const file = path.join(APP_ROOT, name);
     serveFile(res, file);
   } catch (e) {
     console.error(e);
