@@ -85,6 +85,20 @@
   dialog input{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit}
   dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
   .err{color:var(--bad);font-size:.85rem;min-height:1.2em;margin-top:8px}
+  #ipDlg{width:min(980px,96vw);max-height:90vh;overflow:auto}
+  #ipDlg h4{margin:18px 0 8px;font-size:.78rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+  .twrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:.8rem}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+  th{color:var(--muted);font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;background:var(--bg)}
+  td.ip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .r-success,.r-account_created{color:var(--good)} .r-failed,.r-blocked{color:var(--bad)} .r-password_changed{color:var(--warn)}
+  .note{margin:10px 0;padding:9px 11px;border-radius:10px;background:rgba(255,184,77,.1);border:1px solid rgba(255,184,77,.35);font-size:.8rem;color:#ffe1b0}
+  .dl{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .dl a{color:var(--text);text-decoration:none;border:1px solid var(--border);border-radius:10px;padding:7px 12px;font-size:.8rem;background:var(--panel)}
+  .dl a:hover{border-color:var(--brand)}
+  .ipline{font-size:.8rem;margin:0 0 8px;word-break:break-all}
+  .ipline span{color:var(--muted)}
   .ok{color:var(--good);font-size:.85rem}
   .hidden{display:none!important}
 </style>
@@ -102,6 +116,7 @@
       <div class="stat"><b id="sDone">0</b><small>Quizzes finished</small></div>
       <div class="stat"><b id="sTotal">0</b><small>Students</small></div>
     </div>
+    <button id="ipBtn" type="button" title="IP addresses of students and admin sign-ins">IP &amp; sign-in log</button>
     <button id="clearBtn" class="danger" title="Delete all recorded activity">Clear data</button>
     <div class="who"><span class="role">Admin</span><span>Signed in as <b id="meName">…</b></span>
       <button id="pwBtn" type="button">Change password</button><button id="outBtn" type="button">Sign out</button></div>
@@ -125,6 +140,16 @@
     </aside>
   </main>
 </div>
+
+<dialog id="ipDlg">
+  <div style="display:flex;align-items:center;gap:10px"><h3 style="margin:0;flex:1">IP addresses &amp; sign-ins</h3><button type="button" id="ipClose">Close</button></div>
+  <div id="ipNote"></div>
+  <h4>Students — IP address of every device that connected</h4>
+  <div class="twrap"><table id="tblStudents"></table></div>
+  <h4>Admin sign-ins</h4>
+  <div class="twrap"><table id="tblSignins"></table></div>
+  <div class="dl"><a href="/admin/api/students.csv" download>⬇ Students CSV</a><a href="/admin/api/signins.csv" download>⬇ Admin sign-ins CSV</a></div>
+</dialog>
 
 <dialog id="pwDlg">
   <form id="pwForm" method="dialog" autocomplete="off">
@@ -157,6 +182,7 @@
 
   var sessions = new Map();
   var events = [];
+  var signins = [];
   var skew = 0;                       // server clock minus this browser's clock
   var filter = 'all';
   var openCards = new Set();
@@ -173,6 +199,11 @@
     return Math.floor(s / 86400) + 'd ago';
   }
   function clock(t) { return new Date(t).toLocaleTimeString([], { hour12: false }); }
+  function isInternal(ip) {
+    return /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)/.test(ip) ||
+      ip === '::1' || /^(fc|fd|fe80)/i.test(ip);
+  }
+  function when(t) { return new Date(t).toLocaleString([], { hour12: false }); }
   function kb(n) { return (n / 1024).toFixed(1) + ' KB'; }
   var PAGES = { 'index.html': 'Home', 'student.html': 'Name page', 'profile.html': 'Profile page', 'upload.html': 'Upload page',
     'questions.html': 'Question-count page', 'quiz.html': 'Quiz', 'results.html': 'Results page', 'progress.html': 'Progress page', 'about.html': 'About page' };
@@ -229,16 +260,20 @@
     es.addEventListener('update', function (e) {
       var d = JSON.parse(e.data);
       if (d.event) { events.push(d.event); if (events.length > 600) events.shift(); renderFeed(); }
-      if (d.session) { sessions.set(d.session.sid, d.session); renderCard(d.session.sid, !!d.event); renderStats(); }
+      if (d.session) { sessions.set(d.session.sid, d.session); renderCard(d.session.sid, !!d.event); renderStats(); renderIpLog(); }
+    });
+    es.addEventListener('signin', function (e) {
+      signins.push(JSON.parse(e.data)); if (signins.length > 300) signins.shift(); renderIpLog();
     });
   }
   function applySnapshot(s) {
     skew = s.now - Date.now();
     sessions = new Map(s.sessions.map(function (x) { return [x.sid, x]; }));
     events = s.events || [];
+    signins = s.signins || [];
     $('grid').textContent = ''; cards.clear();
     sortedSids().forEach(function (sid) { renderCard(sid); });
-    renderFeed(); renderStats();
+    renderFeed(); renderStats(); renderIpLog();
   }
 
   /* ---------- stats ---------- */
@@ -279,6 +314,12 @@
       where = 'Now on: ' + (PAGES[s.page] || s.page || '—') + (s.page === 'quiz.html' && s.question ? ' (question ' + s.question + ')' : '') + (s.visible ? '' : ' · tab in background');
     } else where = 'Last seen ' + ago(s.lastSeen);
     card.appendChild(h('div', { class: 'where', text: where + ' · ' + (s.device || '') }));
+    var ips = s.ips || [];
+    if (ips.length) {
+      var latest = ips.slice().sort(function (a, b) { return b.last - a.last; });
+      card.appendChild(h('div', { class: 'ipline' }, h('span', { text: 'IP address: ' }), latest[0].ip,
+        latest.length > 1 ? h('span', { text: '  (+' + (latest.length - 1) + ' other: ' + latest.slice(1).map(function (e) { return e.ip; }).join(', ') + ')' }) : null));
+    }
 
     var p = s.profile;
     if (p) {
@@ -369,6 +410,47 @@
       api('/api/clear');
     }
   });
+
+  /* ---------- IP & sign-in log ---------- */
+  function row(cells, head) {
+    var tr = h('tr');
+    cells.forEach(function (c) {
+      var td = h(head ? 'th' : 'td', c && c.cls ? { class: c.cls, text: c.text } : { text: c == null ? '' : String(c) });
+      tr.appendChild(td);
+    });
+    return tr;
+  }
+  function renderIpLog() {
+    var dlg = $('ipDlg');
+    if (!dlg.open) return;
+    var internal = false;
+
+    var t1 = $('tblStudents'); t1.textContent = '';
+    t1.appendChild(row(['Student', 'IP address', 'First seen', 'Last seen', 'Visits', 'Device'], true));
+    var count = 0;
+    Array.from(sessions.values()).sort(function (a, b) { return b.lastSeen - a.lastSeen; }).forEach(function (s) {
+      var name = (s.names && s.names.length ? s.names.join(' / ') : s.name) || '(no name yet)';
+      (s.ips || []).slice().sort(function (a, b) { return b.last - a.last; }).forEach(function (e) {
+        if (isInternal(e.ip)) internal = true;
+        t1.appendChild(row([name, { text: e.ip, cls: 'ip' }, when(e.first), when(e.last), e.count, s.device])); count++;
+      });
+    });
+    if (!count) t1.appendChild(row(['No student connections recorded yet.']));
+
+    var t2 = $('tblSignins'); t2.textContent = '';
+    t2.appendChild(row(['Time', 'User', 'Result', 'IP address', 'Device'], true));
+    var LBL = { success: 'Signed in', failed: 'Wrong password', blocked: 'Blocked (too many tries)', account_created: 'Account created', password_changed: 'Password changed' };
+    signins.slice().reverse().forEach(function (e) {
+      if (isInternal(e.ip)) internal = true;
+      t2.appendChild(row([when(e.t), e.username, { text: LBL[e.result] || e.result, cls: 'r-' + e.result }, { text: e.ip, cls: 'ip' }, e.device]));
+    });
+    if (!signins.length) t2.appendChild(row(['No sign-ins recorded yet.']));
+
+    var note = $('ipNote'); note.textContent = '';
+    if (internal) note.appendChild(h('div', { class: 'note', text: 'Some addresses look like the hosting platform’s internal addresses, not real visitors. On the server, set the variable TRUST_PROXY=1 so visitors’ real IP addresses are recorded.' }));
+  }
+  $('ipBtn').addEventListener('click', function () { $('ipDlg').showModal(); renderIpLog(); });
+  $('ipClose').addEventListener('click', function () { $('ipDlg').close(); });
 
   // keep "x ago" labels fresh
   setInterval(function () { sessions.forEach(function (_, sid) { renderCard(sid); }); }, 10000);

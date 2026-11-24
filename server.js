@@ -48,6 +48,8 @@ const MAX_SESSIONS = 5000;
 /* ------------------------------------------------------------------ state */
 const sessions = new Map();   // sid -> session
 let events = [];              // newest last
+let signins = [];             // admin sign-in attempts (newest last), kept with their IP address
+const MAX_SIGNINS = 500;
 let seq = 0;
 const clients = new Set();    // SSE connections
 
@@ -70,7 +72,7 @@ function label(page) { return PAGE_LABEL[page] || page || 'the app'; }
 function newSession(sid, ua) {
   return {
     sid, name: '', names: [], profile: null, material: null, quiz: null, results: [],
-    online: false, visible: true, page: '', question: 0,
+    ips: [], online: false, visible: true, page: '', question: 0,
     firstSeen: Date.now(), lastSeen: Date.now(), device: deviceOf(ua)
   };
 }
@@ -87,7 +89,8 @@ function pub(s) {   // what the dashboard is allowed to see
   return {
     sid: s.sid, name: s.name, names: s.names, profile: s.profile, material: s.material,
     quiz: s.quiz, results: s.results.slice(0, 20), online: s.online, visible: s.visible,
-    page: s.page, question: s.question, firstSeen: s.firstSeen, lastSeen: s.lastSeen, device: s.device
+    page: s.page, question: s.question, firstSeen: s.firstSeen, lastSeen: s.lastSeen, device: s.device,
+    ips: Array.isArray(s.ips) ? s.ips : []
   };
 }
 
@@ -100,7 +103,7 @@ function scheduleSave() {
     try {
       fs.mkdirSync(DATA_DIR, { recursive: true });
       const tmp = DATA_FILE + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify({ seq, events, sessions: [...sessions.values()] }));
+      fs.writeFileSync(tmp, JSON.stringify({ seq, events, signins, sessions: [...sessions.values()] }));
       fs.renameSync(tmp, DATA_FILE);
     } catch (e) { console.error('Could not save data:', e.message); }
   }, 800);
@@ -110,6 +113,7 @@ function load() {
     const d = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
     seq = d.seq || 0;
     events = Array.isArray(d.events) ? d.events.slice(-MAX_EVENTS) : [];
+    signins = Array.isArray(d.signins) ? d.signins.slice(-MAX_SIGNINS) : [];
     (d.sessions || []).forEach(s => { s.online = false; s.visible = true; sessions.set(s.sid, s); });
     console.log(`Loaded ${sessions.size} saved student session(s).`);
   } catch { /* first run */ }
@@ -206,6 +210,36 @@ function setName(s, name) {
   if (s.names.length > 10) s.names.shift();
 }
 
+// Remember which IP addresses a student's device has connected from (a visit = one page load).
+function noteIp(s, ip, now, isVisit) {
+  if (!ip || ip === 'unknown') return;
+  if (!Array.isArray(s.ips)) s.ips = [];
+  let e = s.ips.find(x => x.ip === ip);
+  if (!e) {
+    e = { ip, first: now, last: now, count: 0 };
+    s.ips.push(e);
+    if (s.ips.length > 10) s.ips.shift();
+  }
+  e.last = now;
+  if (isVisit) e.count++;
+}
+
+// Every admin sign-in attempt is recorded with the IP address it came from.
+// A wrong username is stored as "(other name)" so a password typed into the wrong box is never kept.
+function logSignin(req, ip, username, result) {
+  const real = auth.getUsername();
+  const entry = {
+    id: ++seq, t: Date.now(), result,
+    username: real && String(username || '') === real ? real : '(other name)',
+    ip, device: deviceOf(req.headers['user-agent'])
+  };
+  signins.push(entry);
+  if (signins.length > MAX_SIGNINS) signins = signins.slice(-MAX_SIGNINS);
+  broadcast('signin', entry);
+  scheduleSave();
+  return entry;
+}
+
 function track(raw, req) {
   let b;
   try { b = JSON.parse(raw); } catch { return; }
@@ -223,8 +257,10 @@ function track(raw, req) {
   const page = clean(b.page, 40);
   const now = Date.now();
   const wasOnline = s.online;
+  const ip = clientIp(req);
   s.lastSeen = now;
   s.device = deviceOf(req.headers['user-agent']) || s.device;
+  noteIp(s, ip, now, b.type === 'hello');
 
   switch (b.type) {
     case 'hello': {
@@ -235,7 +271,7 @@ function track(raw, req) {
       const qn = num(d.q, 0, 500);
       if (qn) s.question = qn;
       const quizTxt = page === 'quiz.html' && qn ? ` — question ${qn}${s.quiz ? ' of ' + s.quiz.total : ''}` : '';
-      emit(s, 'page_view', `${who(s)} ${wasOnline ? 'opened' : 'is online and opened'} the ${label(page)}${quizTxt}.`, 'info');
+      emit(s, 'page_view', `${who(s)} ${wasOnline ? 'opened' : 'is online and opened'} the ${label(page)}${quizTxt}${wasOnline ? '' : ` (IP ${ip})`}.`, 'info');
       checkResume(s);
       if (s.quiz && s.quiz.status === 'in_progress' && page !== 'quiz.html') {
         scheduleAwayCheck(s, null, `went to the ${label(page)}`);
@@ -272,7 +308,7 @@ function track(raw, req) {
       const name = clean(d.name, 80);
       if (!name) return;
       setName(s, name);
-      emit(s, 'student_name', `${name} entered their student name.`, 'good');
+      emit(s, 'student_name', `${name} entered their student name (IP ${ip}).`, 'good');
       break;
     }
     case 'profile_saved': {
@@ -356,8 +392,13 @@ function isSecure(req) {
   return !!req.socket.encrypted || (TRUST_PROXY && String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https');
 }
 function clientIp(req) {
-  if (TRUST_PROXY) return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
-  return req.socket.remoteAddress || 'unknown';
+  let ip = req.socket.remoteAddress || 'unknown';
+  if (TRUST_PROXY) {   // the host's edge overwrites these headers, so a visitor cannot fake them
+    const real = String(req.headers['x-real-ip'] || '').trim();
+    const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    ip = real || fwd || ip;
+  }
+  return clean(ip, 64).replace(/^::ffff:/i, '');
 }
 function adminOf(req) { return auth.sessionOf(req); }      // null when not signed in as admin
 function json(res, code, obj, headers) {
@@ -409,8 +450,30 @@ function serveFile(res, file) {
     res.end(buf);
   });
 }
+// CSV safety: a cell that starts with = + - @ could run as a spreadsheet formula, so it is defused.
+function csvCell(v) {
+  let t = String(v == null ? '' : v);
+  if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;
+  return '"' + t.replace(/"/g, '""') + '"';
+}
+function studentRows() {
+  const rows = [['Student name', 'IP address', 'First seen', 'Last seen', 'Visits', 'Device', 'School', 'Programme', 'Level']];
+  [...sessions.values()].sort((a, b) => b.lastSeen - a.lastSeen).forEach(s => {
+    const name = (s.names && s.names.length ? s.names.join(' / ') : s.name) || '(no name yet)';
+    const p = s.profile || {};
+    const ips = Array.isArray(s.ips) && s.ips.length ? s.ips : [{ ip: '', first: s.firstSeen, last: s.lastSeen, count: '' }];
+    ips.forEach(e => rows.push([name, e.ip, new Date(e.first).toISOString(), new Date(e.last).toISOString(), e.count, s.device, p.school || '', p.programme || '', p.level || '']));
+  });
+  return rows;
+}
+function signinRows() {
+  const rows = [['Time', 'Username', 'Result', 'IP address', 'Device']];
+  signins.slice().reverse().forEach(e => rows.push([new Date(e.t).toISOString(), e.username, e.result, e.ip, e.device]));
+  return rows;
+}
+
 function snapshot() {
-  return { now: Date.now(), sessions: [...sessions.values()].map(pub), events: events.slice(-300) };
+  return { now: Date.now(), sessions: [...sessions.values()].map(pub), events: events.slice(-300), signins: signins.slice(-200) };
 }
 
 /* ------------------------------------------------------------------ routes */
@@ -436,7 +499,7 @@ const server = http.createServer((req, res) => {
       if (p === '/api/state') return json(res, 200, snapshot());
       if (p === '/api/clear') {
         if (req.method !== 'POST' || !sameSiteJson(req)) return json(res, 403, { error: 'Blocked request.' });
-        sessions.clear(); events = []; scheduleSave();
+        sessions.clear(); events = []; signins = []; scheduleSave();
         broadcast('snapshot', snapshot());
         res.writeHead(204); return res.end();
       }
@@ -456,6 +519,15 @@ const server = http.createServer((req, res) => {
     if (p.startsWith('/admin/api/')) {
       const secure = isSecure(req);
       const ip = clientIp(req);
+      if (req.method === 'GET' && (p === '/admin/api/students.csv' || p === '/admin/api/signins.csv')) {
+        if (!adminOf(req)) return json(res, 401, { error: 'Admin sign-in required.' });
+        const students = p.endsWith('students.csv');
+        res.writeHead(200, {
+          'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store',
+          'Content-Disposition': `attachment; filename="${students ? 'student-ip-log' : 'admin-signins'}.csv"`
+        });
+        return res.end('\ufeff' + (students ? studentRows() : signinRows()).map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n');
+      }
       if (req.method !== 'POST' && p !== '/admin/api/me') return json(res, 405, { error: 'Method not allowed.' });
 
       if (p === '/admin/api/me') {
@@ -468,13 +540,18 @@ const server = http.createServer((req, res) => {
           const pair = 'pair:' + ip + '|' + String(body.username || '').toLowerCase().slice(0, 40);
           const keys = ['ip:' + ip, pair];
           const wait = auth.lockedFor(keys);
-          if (wait) return json(res, 429, { error: `Too many failed attempts. Try again in ${Math.ceil(wait / 60000)} minute(s).` }, { 'Retry-After': String(Math.ceil(wait / 1000)) });
+          if (wait) {
+            logSignin(req, ip, body.username, 'blocked');
+            return json(res, 429, { error: `Too many failed attempts. Try again in ${Math.ceil(wait / 60000)} minute(s).` }, { 'Retry-After': String(Math.ceil(wait / 1000)) });
+          }
           if (!auth.hasAdmin()) return json(res, 409, { error: 'No admin account exists yet.', setup: true });
           if (!auth.checkPassword(body.username, body.password)) {
             auth.recordFail(keys);
+            logSignin(req, ip, body.username, 'failed');
             return json(res, 401, { error: 'Wrong username or password.' });
           }
           auth.clearFails([pair]);
+          logSignin(req, ip, body.username, 'success');
           const token = auth.createSession(auth.getUsername());
           json(res, 200, { ok: true }, { 'Set-Cookie': auth.cookieHeader(token, secure) });
         });
@@ -503,6 +580,7 @@ const server = http.createServer((req, res) => {
           auth.saveAccount(String(body.username), String(body.password));
           setupCode = '';
           const token = auth.createSession(auth.getUsername());
+          logSignin(req, ip, body.username, 'account_created');
           console.log(`  Admin account “${auth.getUsername()}” created.`);
           json(res, 200, { ok: true }, { 'Set-Cookie': auth.cookieHeader(token, secure) });
         });
@@ -517,6 +595,7 @@ const server = http.createServer((req, res) => {
           if (!auth.checkPassword(me.username, body.current)) { auth.recordFail(keys); return json(res, 403, { error: 'Your current password is not correct.' }); }
           const problem = auth.passwordProblem(body.next);
           if (problem) return json(res, 400, { error: problem });
+          logSignin(req, ip, me.username, 'password_changed');
           auth.saveAccount(me.username, String(body.next));
           auth.destroyAllSessions();                              // sign out everywhere, including old cookies
           const token = auth.createSession(me.username);

@@ -78,6 +78,7 @@ Note: browsers only allow installing from `https://` addresses (or `localhost`).
 - **Quiz progress** – quiz started, every answer (correct/wrong, with the question and their answer), current question, score, and the final HURRAY / SHAME result.
 - **Leaving a quiz** – flagged in red with the question they stopped at and why (closed the tab, moved to another page, lost connection). Switching to another tab/app mid-quiz is logged too.
 - **Presence** – online/offline, current page, device.
+- **IP addresses** – each student's IP address (every network their device used), and every admin sign-in attempt with its IP address, in the **IP & sign-in log** panel (live) with CSV downloads. The student name page tells students their IP address is visible. On a host behind a proxy (Railway, Render, …) set `TRUST_PROXY=1`, otherwise only the platform's internal addresses are recorded.
 
 Moving from question 3 to 4 or refreshing the page is *not* treated as leaving.
 
