@@ -10,8 +10,8 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(event.request).catch(() => new Response(
       '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<body style="font-family:system-ui;background:#0b1020;color:#eef3ff;display:grid;place-items:center;height:100vh;margin:0;text-align:center">' +
-      '<div><h2>You are offline</h2><p style="color:#9aa8c7">The admin dashboard needs a connection to show live student activity.</p></div>',
+      '<body style="font-family:system-ui;background:#111111;color:#FFFFFF;display:grid;place-items:center;height:100vh;margin:0;text-align:center">' +
+      '<div><h2>You are offline</h2><p style="color:#A3A3A3">The admin dashboard needs a connection to show live student activity.</p></div>',
       { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))
   );
 });

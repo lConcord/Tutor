@@ -3,11 +3,11 @@
  * It never touches the backend (/api) or the admin app (/admin) — those always
  * go straight to the network so nothing private is ever cached.
  */
-const CACHE = 'concord-tutor-v1';
+const CACHE = 'concord-tutor-v2';
 const SHELL = [
   'index.html', 'student.html', 'profile.html', 'upload.html', 'questions.html', 'quiz.html',
   'results.html', 'progress.html', 'about.html',
-  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js',
+  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js', 'globe.js',
   'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
 ];

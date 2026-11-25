@@ -19,7 +19,7 @@
       btn.textContent = '⬇ Install app';
       btn.setAttribute('aria-label', 'Install Concord Tutor as an app');
       btn.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:50;padding:11px 16px;border:0;border-radius:999px;' +
-        'font:700 .9rem system-ui,sans-serif;color:#fff;cursor:pointer;background:linear-gradient(135deg,#7c5cff,#21d4fd);' +
+        'font:700 .9rem system-ui,sans-serif;color:#fff;cursor:pointer;background:#FF4D00;' +
         'box-shadow:0 10px 30px rgba(0,0,0,.35)';
       btn.onclick = function () {
         var p = deferred; deferred = null;

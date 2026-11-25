@@ -111,3 +111,9 @@ cannot upload folders). Student pages: `index`, `student`, `profile`, `upload`, 
 `progress`, `about` (`.html`) plus `styles.css`, `app.js`, `config.js`, `tracker.js`, `pwa.js`, `sw.js`,
 `manifest.webmanifest` and the icon PNGs. Server: `server.js`, `auth.js`. Admin app: `login.html`, `setup.html`,
 `admin.html`, `admin.css`, `admin.webmanifest`, `admin-sw.js` and the `admin-*.png` icons.
+
+
+## Theme & animation
+Colours: black `#111111`, orange `#FF4D00`, white `#FFFFFF`, grey `#A3A3A3` (dark mode by default; the sun/moon button switches to a white-and-black light mode with the same orange accent). All colours are CSS variables at the top of `styles.css` (student app) and `admin.css` / the top of `admin.html` (admin app).
+
+`globe.js` draws the animated world globe (no libraries): it turns by itself, glowing arcs fly between cities, a satellite orbits it, and you can drag it to spin. It pauses when off-screen, never runs on the quiz page, and shows one still image if the device asks for reduced motion. The land map is stored as a compact bitmask inside the file.

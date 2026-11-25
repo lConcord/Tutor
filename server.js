@@ -32,7 +32,7 @@ const PUBLIC_DIR = __dirname;
 const STUDENT_FILES = new Set([
   'index.html', 'student.html', 'profile.html', 'upload.html', 'questions.html', 'quiz.html',
   'results.html', 'progress.html', 'about.html',
-  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js', 'sw.js', 'manifest.webmanifest',
+  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js', 'globe.js', 'sw.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png'
 ]);
 // Where student activity is saved. On hosts that wipe files on restart, point DATA_DIR at a persistent volume.
