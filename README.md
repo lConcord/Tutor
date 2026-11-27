@@ -117,3 +117,36 @@ cannot upload folders). Student pages: `index`, `student`, `profile`, `upload`, 
 Colours: black `#111111`, orange `#FF4D00`, white `#FFFFFF`, grey `#A3A3A3` (dark mode by default; the sun/moon button switches to a white-and-black light mode with the same orange accent). All colours are CSS variables at the top of `styles.css` (student app) and `admin.css` / the top of `admin.html` (admin app).
 
 `globe.js` draws the animated world globe (no libraries): it turns by itself, glowing arcs fly between cities, a satellite orbits it, and you can drag it to spin. It pauses when off-screen, never runs on the quiz page, and shows one still image if the device asks for reduced motion. The land map is stored as a compact bitmask inside the file.
+
+
+## Study hub (Learn, Past Questions, Quizzes, Dashboard…)
+Built from the "Ghana Student Hub" plan, starting with its Version 1 (Home → Subjects → Past Questions → Quiz → Results → Dashboard).
+All quizzes run on the same quiz engine as "My Notes", so students get instant ✓ / ✗ feedback, then the next question, then HURRAY / SHAME.
+
+| Page | What it does |
+|---|---|
+| `learn.html` | 13 subjects, topic by topic practice |
+| `past-questions.html` | Examination → subject → year/paper → practice |
+| `smart-quiz.html` | Subject → topic → difficulty → number of questions |
+| `dashboard.html` | Overall progress, per-subject %, 🔥 streak, ⭐ XP and level, weakest topic with a revision quiz, recent quizzes |
+| `leaderboard.html` | XP ranking, anonymous unless the student opts in to show "Ama M." |
+| `search.html` | Searches subjects, topics, questions, scholarships, schools |
+| `scholarships.html`, `schools.html` | Verified directories (see below) |
+| `ai-tutor.html`, `pricing.html`, `more.html` | Coming-soon AI tutor modes, free/planned plans (no prices), and the "Explore" page |
+
+XP: +5 per answer, +10 per correct answer, +25 per finished quiz, +100 per completed 7-day streak.
+On phones a bottom bar (Home · Learn · Quiz · Progress · More) appears; it is hidden during quizzes.
+
+### The questions are practice questions, not official past papers
+`bank.js` holds 91 **original** practice questions (13 subjects), written for this app and checked by hand. They are labelled as practice questions on the site.
+To add your **real past questions** (with year and paper), edit `bank-extra.js`: the file explains the format at the top. Questions with a year and paper then appear under *Past Questions → Year / Paper*. Invalid entries are ignored. Only add questions you have the right to use.
+
+### Scholarships and schools
+`directory.js` lists three verified scholarship programmes (Ghana Scholarships Authority, Chevening, Commonwealth Scholarships) and five public universities with their official websites, checked on 25 November 2026. No deadlines or entry requirements are shown because they change every year. To add an entry, verify it on its official website first, then copy an existing entry.
+
+### Leaderboard privacy
+Students appear as "Student 4F2A" unless they tick the box to show their first name and last initial. Names are limited to plain letters and basic punctuation, but they are chosen by the student's browser, so glance at the leaderboard now and then; "Clear data" in the admin dashboard resets it. XP is reported by the student's own browser, so a determined student could fake it: treat it as a motivation tool, not an official ranking.
+
+### Not built yet (from the plan's later versions)
+AI Tutor (needs an AI service and key), mock exams, tutors, payments/Premium, school partnerships. Their pages say "Coming soon".
+`pagegen.py` can regenerate the pages; copy only the files you need, because `upload.html` there is older than the one in use.

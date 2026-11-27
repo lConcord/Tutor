@@ -321,6 +321,7 @@
         latest.length > 1 ? h('span', { text: '  (+' + (latest.length - 1) + ' other: ' + latest.slice(1).map(function (e) { return e.ip; }).join(', ') + ')' }) : null));
     }
 
+    if (s.xp) card.appendChild(h('div', { class: 'ipline' }, h('span', { text: 'XP: ' }), String(s.xp)));
     var p = s.profile;
     if (p) {
       card.appendChild(h('dl', null,

@@ -3,11 +3,13 @@
  * It never touches the backend (/api) or the admin app (/admin) — those always
  * go straight to the network so nothing private is ever cached.
  */
-const CACHE = 'concord-tutor-v2';
+const CACHE = 'concord-tutor-v3';
 const SHELL = [
   'index.html', 'student.html', 'profile.html', 'upload.html', 'questions.html', 'quiz.html',
   'results.html', 'progress.html', 'about.html',
-  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js', 'globe.js',
+  'learn.html', 'past-questions.html', 'smart-quiz.html', 'dashboard.html', 'leaderboard.html', 'search.html',
+  'scholarships.html', 'schools.html', 'ai-tutor.html', 'pricing.html', 'more.html',
+  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js', 'globe.js', 'hub.js', 'bank.js', 'bank-extra.js', 'directory.js',
   'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
 ];
@@ -45,6 +47,18 @@ self.addEventListener('fetch', event => {
       }).catch(() =>
         caches.match(req, { ignoreSearch: true }).then(hit => hit || caches.match('index.html'))
       )
+    );
+    return;
+  }
+
+  // Data files you edit (questions, scholarships, schools): always try the network first so new entries
+  // show up straight away; the cached copy is only used when the phone is offline.
+  if (/\/(bank|bank-extra|directory)\.js$/.test(url.pathname)) {
+    event.respondWith(
+      fetch(req).then(res => {
+        if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {}); }
+        return res;
+      }).catch(() => caches.match(req))
     );
     return;
   }

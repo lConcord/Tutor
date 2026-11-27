@@ -79,6 +79,10 @@
         if (m) out.push(['material_uploaded', { name: m.name, size: m.size, questions: (m.questions || []).length }]);
       }
 
+      if (typeof n.xp === 'number' && n.xp !== p.xp) out.push(['xp_update', { xp: n.xp }]);
+      var pName = (p.prefs && p.prefs.lbName) || '', nName = (n.prefs && n.prefs.lbName) || '';
+      if (pName !== nName) out.push(['leaderboard_prefs', { name: nName }]);
+
       var pq = p.quiz, nq = n.quiz;
       if (!pq && nq) {
         out.push(['quiz_started', { total: (nq.questions || []).length }]);

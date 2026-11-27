@@ -65,20 +65,32 @@ function nav() {
         <button class="iconbtn" id="menuBtn" aria-label="Open menu">☰</button>
         <div class="navlinks" id="navlinks">
           <a href="index.html">Home</a>
-          <a href="upload.html">Upload Material</a>
-          <a href="questions.html">Start Quiz</a>
-          <a href="progress.html">Progress</a>
-          <a href="about.html">About</a>
+          <a href="learn.html">Learn</a>
+          <a href="past-questions.html">Past Questions</a>
+          <a href="smart-quiz.html">Quizzes</a>
+          <a href="upload.html">My Notes</a>
+          <a href="dashboard.html">Dashboard</a>
+          <a href="more.html">More</a>
         </div>
         <button class="iconbtn" id="themeBtn" aria-label="Toggle theme">🌙</button>
       </div>
     </div>`;
+
+  const here = location.pathname.split('/').pop() || 'index.html';
+  document.querySelectorAll('#navlinks a').forEach(a => {
+    if (a.getAttribute('href') === here) a.classList.add('active');
+  });
 
   document.querySelector('#themeBtn').onclick = toggleTheme;
   document.querySelector('#menuBtn').onclick = () =>
     document.querySelector('#navlinks').classList.toggle('open');
 
   applyTheme();
+}
+
+// Pages a student may be sent back to after entering their name / profile.
+function safeNext(v) {
+  return /^(learn|past-questions|smart-quiz|dashboard|leaderboard)\.html$/.test(v || '') ? v : '';
 }
 
 function requireProfile() {
@@ -299,7 +311,15 @@ function initStudent() {
     (d.results[0] && d.results[0].student) ||
     '';
 
-  const next = () => go(getDB().profile ? 'upload.html' : 'profile.html');
+  const next = () => {
+    const want = safeNext(new URLSearchParams(location.search).get('next'));
+    if (!getDB().profile) {
+      if (want) { try { sessionStorage.setItem('concordNext', want); } catch (e) {} }
+      go('profile.html');
+    } else {
+      go(want || 'upload.html');
+    }
+  };
 
   // Offer the last student's name as an optional shortcut, never pre-filled.
   const again = document.querySelector('#continueAs');
@@ -366,7 +386,9 @@ function initProfile() {
     const d = getDB();
     d.profile = profile;
     saveDB(d);
-    go('upload.html');
+    let back = '';
+    try { back = safeNext(sessionStorage.getItem('concordNext')); sessionStorage.removeItem('concordNext'); } catch (e) {}
+    go(back || 'upload.html');
   };
 }
 
@@ -647,7 +669,11 @@ function submitAnswer() {
     user,
     correctAnswer: q.answer,
     correct,
-    score
+    score,
+    subject: q.subject || '',
+    topic: q.topic || '',
+    qid: q.qid || '',
+    difficulty: q.difficulty || ''
   };
   d.quiz.answers[idx] = entry;
 
@@ -743,6 +769,7 @@ function finishQuiz() {
     student: studentName(d),
     date: new Date().toISOString(),
     materialId: q.materialId,
+    meta: q.meta || null,
     total,
     correct: q.correct,
     wrong: total - q.correct,

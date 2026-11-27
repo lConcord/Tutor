@@ -32,7 +32,10 @@ const PUBLIC_DIR = __dirname;
 const STUDENT_FILES = new Set([
   'index.html', 'student.html', 'profile.html', 'upload.html', 'questions.html', 'quiz.html',
   'results.html', 'progress.html', 'about.html',
-  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js', 'globe.js', 'sw.js', 'manifest.webmanifest',
+  'learn.html', 'past-questions.html', 'smart-quiz.html', 'dashboard.html', 'leaderboard.html', 'search.html',
+  'scholarships.html', 'schools.html', 'ai-tutor.html', 'pricing.html', 'more.html',
+  'styles.css', 'app.js', 'config.js', 'tracker.js', 'pwa.js', 'globe.js', 'hub.js', 'bank.js', 'bank-extra.js', 'directory.js',
+  'sw.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png'
 ]);
 // Where student activity is saved. On hosts that wipe files on restart, point DATA_DIR at a persistent volume.
@@ -90,7 +93,7 @@ function pub(s) {   // what the dashboard is allowed to see
     sid: s.sid, name: s.name, names: s.names, profile: s.profile, material: s.material,
     quiz: s.quiz, results: s.results.slice(0, 20), online: s.online, visible: s.visible,
     page: s.page, question: s.question, firstSeen: s.firstSeen, lastSeen: s.lastSeen, device: s.device,
-    ips: Array.isArray(s.ips) ? s.ips : []
+    ips: Array.isArray(s.ips) ? s.ips : [], xp: s.xp || 0
   };
 }
 
@@ -178,7 +181,8 @@ function scheduleAwayCheck(s, leaveAt, reasonIfMoved) {
 
 /* ------------------------------------------------------------ event intake */
 const TYPES = new Set(['hello', 'heartbeat', 'leave', 'visibility', 'student_name', 'profile_saved',
-  'material_uploaded', 'quiz_started', 'answer_submitted', 'quiz_completed', 'quiz_discarded', 'progress_reset']);
+  'material_uploaded', 'quiz_started', 'answer_submitted', 'quiz_completed', 'quiz_discarded', 'progress_reset',
+  'xp_update', 'leaderboard_prefs']);
 const rate = new Map();
 function allowed(sid) {
   const now = Date.now();
@@ -365,6 +369,16 @@ function track(raw, req) {
         s.quiz.status = 'abandoned';
         emit(s, 'quiz_abandoned', `${who(s)} dropped their unfinished quiz (started over or uploaded new material).`, 'warn');
       }
+      break;
+    }
+    case 'xp_update': {            // the student's XP total (used by the leaderboard); too frequent for the activity feed
+      s.xp = Math.round(num(d.xp, 0, 1000000));
+      touch(s);
+      break;
+    }
+    case 'leaderboard_prefs': {    // opt-in: show "Ama M." instead of an anonymous code
+      s.lbName = clean(d.name, 24).replace(/[^\p{L} .'’-]/gu, '').trim();   // plain letters and basic punctuation only
+      touch(s);
       break;
     }
     case 'progress_reset': {
@@ -629,6 +643,14 @@ const server = http.createServer((req, res) => {
     };
     if (ADMIN_PUBLIC[p]) return serveFile(res, path.join(PUBLIC_DIR, ADMIN_PUBLIC[p]));
 
+    if (p === '/api/leaderboard' && req.method === 'GET') {
+      const sid = String(u.searchParams.get('sid') || '');
+      const ranked = [...sessions.values()].filter(x => x.xp > 0).sort((a, b) => b.xp - a.xp);
+      const label = x => x.lbName || ('Student ' + crypto.createHash('sha256').update(x.sid).digest('hex').slice(0, 4).toUpperCase());
+      const top = ranked.slice(0, 20).map((x, i) => ({ rank: i + 1, label: label(x), xp: x.xp, you: x.sid === sid }));
+      const at = sid ? ranked.findIndex(x => x.sid === sid) : -1;
+      return json(res, 200, { top, total: ranked.length, me: at >= 0 ? { rank: at + 1, xp: ranked[at].xp, label: label(ranked[at]) } : null });
+    }
     if (p === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
 
     // Student app files: only names on the allow-list, directly in the root.
